@@ -140,20 +140,41 @@ p_variants <- plot_grid(p_numvariants, p_varfreq, ncol=2)
 p_variants
 save_plot(paste0(DIR,"variantstats.pdf"), p_variants, ncol=2)
 
-# Plot distribution of non-consensus amino acids at each codon site.
-DataDist <- DataMerged %>% 
+# Plot CDF of each type of mutation.
+DataDist <- DataMerged %>%
   mutate(Count=Count.x+Count.y, Coverage=Coverage.x+Coverage.y) %>%
-  group_by(Biosample, Gene, Codon) %>% filter(Base!=Consensus.x) %>%
-  summarize(Freq=sum(Count)/mean(Coverage))
+  filter(Base!=Consensus.x) %>%
+  mutate(MutationType=paste0(RefBase.x,"->",Base)) %>%
+  mutate(Freq=Count/Coverage)
 
-# Plot the distribution of non-consensus amino acid counts
-# at sites with sub-threshold variant frequencies.
-p_distribution <- ggplot(DataDist) + geom_histogram(aes(x=Freq), binwidth=0.0005) +
-  geom_vline(data=DataDist %>% filter(Gene=="6-NA", Codon==151),
-             aes(xintercept=Freq), color="firebrick3", size=0.7) +
-  xlim(0,minfreq) + ylab("Number of codon sites") + ylim(0,1000) +
-  xlab("Frequency of minority variants") +
+# Plot the distribution of A->G mutations across the genome for each sample.
+p_distribution <- ggplot(DataDist %>% filter(MutationType=="A->G")) +
+  stat_ecdf(aes(x=Freq)) +
+  scale_x_log10(limits=c(10^(-4.5), 10^-1)) +
   facet_wrap(~Biosample, ncol=3, scales="free") +
+  xlab("Frequency of G->A mutations") + ylab("Proportion of sites") +
+  geom_vline(data=DataDist %>% 
+               filter(Gene=="6-NA", Codon==151, Pos==471, MutationType=="A->G"),
+             aes(xintercept=Freq), color="firebrick3", size=0.7) +
   THEME_ALL
+
+# Figure version in initial submission.
+# # Plot distribution of non-consensus amino acids at each codon site.
+# DataDist <- DataMerged %>% 
+#   mutate(Count=Count.x+Count.y, Coverage=Coverage.x+Coverage.y) %>%
+#   group_by(Biosample, Gene, Codon) %>% filter(Base!=Consensus.x) %>%
+#   summarize(Freq=sum(Count)/mean(Coverage))
+# 
+# # Plot the distribution of non-consensus amino acid counts
+# # at sites with sub-threshold variant frequencies.
+# p_distribution <- ggplot(DataDist) + geom_histogram(aes(x=Freq), binwidth=0.0005) +
+#   geom_vline(data=DataDist %>% filter(Gene=="6-NA", Codon==151),
+#              aes(xintercept=Freq), color="firebrick3", size=0.7) +
+#   xlim(0,minfreq) + ylab("Number of codon sites") + ylim(0,1000) +
+#   xlab("Frequency of minority variants") +
+#   facet_wrap(~Biosample, ncol=3, scales="free") +
+#   THEME_ALL
+
 save_plot(paste0(DIR,"distribution.pdf"), p_distribution,
           base_height=5, base_width=5)
+
